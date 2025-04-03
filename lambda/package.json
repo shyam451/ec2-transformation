@@ -1,0 +1,11 @@
+{
+  "name": "asg-redeploy",
+  "version": "1.0.0",
+  "description": "Lambda function to trigger ASG redeployment",
+  "main": "index.js",
+  "author": "Devin AI",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.1099.0"
+  }
+}
