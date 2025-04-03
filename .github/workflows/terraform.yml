@@ -102,7 +102,7 @@ jobs:
       id: find_lambda
       run: |
         echo "Finding the most recent Lambda function for ec2-transformation-asg-redeploy..."
-        LAMBDA_NAME=$(aws lambda list-functions --query "Functions[?starts_with(FunctionName, 'ec2-transformation-asg-redeploy')].FunctionName" --output text | sort | tail -n 1)
+        LAMBDA_NAME=$(aws lambda list-functions --query "Functions[?starts_with(FunctionName, 'ec2-transformation-asg-redeploy')].FunctionName" --output text | tr '\t' '\n' | sort | tail -n 1)
         echo "Found Lambda function: $LAMBDA_NAME"
         echo "LAMBDA_NAME=$LAMBDA_NAME" >> $GITHUB_ENV
         
