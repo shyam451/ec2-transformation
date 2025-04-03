@@ -7,7 +7,6 @@ on:
     branches: [ main ]
 
 permissions:
-  id-token: write
   contents: read
   pull-requests: write
 
@@ -20,16 +19,26 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
-        aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
-
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
       with:
         terraform_version: 1.0.0
+
+    - name: Configure AWS credentials
+      run: |
+        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+        echo "AWS_REGION=${{ secrets.AWS_REGION || 'us-east-1' }}" >> $GITHUB_ENV
+        
+        # Configure AWS CLI to assume the role
+        aws configure set aws.region ${{ secrets.AWS_REGION || 'us-east-1' }}
+        
+        # Assume the role and export temporary credentials
+        CREDS=$(aws sts assume-role --role-arn arn:aws:iam::641002720432:role/ec2-role --role-session-name github-actions)
+        
+        echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
+        echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
 
     - name: Terraform Format
       id: fmt
