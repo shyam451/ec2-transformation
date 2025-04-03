@@ -39,7 +39,7 @@ exports.handler = async (event) => {
         MinHealthyPercentage: 50,
         InstanceWarmup: 300,
         AutoRollback: true,
-        ScaleInProtectedInstances: 'Terminate',
+        ScaleInProtectedInstances: 'Ignore',
         StandbyInstances: 'Terminate'
       }
     };

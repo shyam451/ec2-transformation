@@ -47,7 +47,7 @@ resource "aws_autoscaling_group" "asg" {
       min_healthy_percentage = 50
       instance_warmup = 300
       auto_rollback = true
-      scale_in_protected_instances = "Terminate"
+      scale_in_protected_instances = "Ignore"
       standby_instances = "Terminate"
     }
   }
