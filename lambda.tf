@@ -1,3 +1,5 @@
+
+/*
 resource "aws_lambda_function" "asg_redeploy" {
   function_name    = "${var.project_name}-asg-redeploy"
   filename         = "${path.module}/lambda/asg_redeploy.zip"
@@ -49,3 +51,4 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.scheduled_redeploy.arn
 }
+*/

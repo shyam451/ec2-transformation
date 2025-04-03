@@ -66,6 +66,8 @@ resource "aws_security_group" "instance_sg" {
   }
 }
 
+
+/*
 resource "aws_iam_role" "lambda_role" {
   name = "${var.project_name}-lambda-role"
 
@@ -116,3 +118,4 @@ resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = aws_iam_policy.lambda_policy.arn
 }
+*/
