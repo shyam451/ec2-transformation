@@ -4,7 +4,7 @@ resource "aws_launch_template" "asg_launch_template" {
   instance_type = var.instance_type
   key_name      = var.key_name
 
-  vpc_security_group_ids = [data.aws_security_group.instance_sg.id]
+  vpc_security_group_ids = [aws_security_group.instance_sg.id]
 
   user_data = base64encode(<<-EOF
     echo "Hello from EC2 instance in ASG" > /tmp/hello.txt
@@ -30,7 +30,7 @@ resource "aws_launch_template" "asg_launch_template" {
 }
 
 resource "aws_autoscaling_group" "asg" {
-  name                = "${var.project_name}-asg"
+  name                = "${var.project_name}-asg-new"
   min_size            = var.min_size
   max_size            = var.max_size
   desired_capacity    = var.desired_capacity
