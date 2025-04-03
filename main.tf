@@ -1,6 +1,5 @@
 provider "aws" {
-  region  = var.aws_region
-  profile = "ec2role"
+  region = var.aws_region
 }
 
 data "aws_vpc" "default" {
