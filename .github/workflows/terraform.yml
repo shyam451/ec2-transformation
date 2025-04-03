@@ -102,5 +102,5 @@ jobs:
           })
 
     - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/1743646842-ec2-asg-lambda') && github.event_name == 'push'
       run: terraform apply -auto-approve
