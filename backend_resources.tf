@@ -1,4 +1,5 @@
 
+
 provider "aws" {
   region = "us-east-1"
   alias  = "backend"
@@ -16,7 +17,7 @@ resource "aws_s3_bucket" "terraform_state" {
 resource "aws_s3_bucket_versioning" "terraform_state" {
   provider = aws.backend
   bucket   = aws_s3_bucket.terraform_state.id
-  
+
   versioning_configuration {
     status = "Enabled"
   }
