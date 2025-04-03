@@ -1,10 +1,3 @@
-#!/bin/bash
-set -e
-
-
-echo "Creating Lambda invocation workflow file..."
-
-cat > .github/workflows/trigger_lambda_now.yml << 'EOF'
 name: Trigger Lambda Now
 
 on:
@@ -121,7 +114,3 @@ jobs:
           --auto-scaling-group-name "$ASG_NAME" \
           --query "InstanceRefreshes[*].{RefreshId:InstanceRefreshId,Status:Status,StartTime:StartTime,PercentageComplete:PercentageComplete}" \
           --output table
-EOF
-
-echo "Workflow file created. Commit and push this file to trigger the Lambda invocation."
-echo "Run: git add .github/workflows/trigger_lambda_now.yml direct_lambda_invoke.sh && git commit -m 'Add Lambda trigger workflow' && git push origin devin/1743646842-ec2-asg-lambda"
