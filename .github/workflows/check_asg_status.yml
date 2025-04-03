@@ -23,14 +23,27 @@ jobs:
       run: |
         echo "Checking Auto Scaling Groups..."
         aws autoscaling describe-auto-scaling-groups \
-          --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation-asg-')].[AutoScalingGroupName,MinSize,MaxSize,DesiredCapacity,Instances[*].InstanceId]" \
-          --output json
+          --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation-asg-')].[AutoScalingGroupName,MinSize,MaxSize,DesiredCapacity]" \
+          --output table
         
-        echo "Checking Instance Refresh Status..."
+        echo "Checking ASG Instances..."
         ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation-asg-')].AutoScalingGroupName" --output text | tr '\t' '\n' | sort | tail -n 1)
         
         if [ -n "$ASG_NAME" ]; then
           echo "Found ASG: $ASG_NAME"
+          echo "ASG Instances:"
+          aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-name "$ASG_NAME" \
+            --query "AutoScalingGroups[0].Instances[*].{InstanceId:InstanceId,LifecycleState:LifecycleState,HealthStatus:HealthStatus,AvailabilityZone:AvailabilityZone}" \
+            --output table
+            
+          echo "Instance Refresh Status:"
+          aws autoscaling describe-instance-refreshes \
+            --auto-scaling-group-name "$ASG_NAME" \
+            --query "InstanceRefreshes[*].{RefreshId:InstanceRefreshId,Status:Status,StartTime:StartTime,PercentageComplete:PercentageComplete}" \
+            --output table
+            
+          echo "Detailed Instance Refresh:"
           aws autoscaling describe-instance-refreshes \
             --auto-scaling-group-name "$ASG_NAME" \
             --query "InstanceRefreshes[0]" \
@@ -42,5 +55,25 @@ jobs:
         echo "Checking EC2 Instances..."
         aws ec2 describe-instances \
           --filters "Name=tag:Name,Values=ec2-transformation-instance" \
-          --query "Reservations[].Instances[].{InstanceId:InstanceId,State:State.Name,LaunchTime:LaunchTime}" \
-          --output json
+          --query "Reservations[].Instances[].{InstanceId:InstanceId,State:State.Name,LaunchTime:LaunchTime,InstanceType:InstanceType,AZ:Placement.AvailabilityZone}" \
+          --output table
+          
+        echo "Checking for any instance launch failures..."
+        aws autoscaling describe-scaling-activities \
+          --auto-scaling-group-name "$ASG_NAME" \
+          --query "Activities[?contains(Description, 'Launching') && StatusCode!='Successful'].{ActivityId:ActivityId,Description:Description,StatusCode:StatusCode,StatusMessage:StatusMessage,StartTime:StartTime}" \
+          --output table
+          
+        echo "Checking ASG Launch Template..."
+        LAUNCH_TEMPLATE_ID=$(aws autoscaling describe-auto-scaling-groups \
+          --auto-scaling-group-name "$ASG_NAME" \
+          --query "AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId" \
+          --output text)
+          
+        if [ -n "$LAUNCH_TEMPLATE_ID" ]; then
+          echo "Launch Template ID: $LAUNCH_TEMPLATE_ID"
+          aws ec2 describe-launch-templates \
+            --launch-template-ids "$LAUNCH_TEMPLATE_ID" \
+            --query "LaunchTemplates[0]" \
+            --output json
+        fi
