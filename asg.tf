@@ -30,7 +30,7 @@ resource "aws_launch_template" "asg_launch_template" {
 }
 
 resource "aws_autoscaling_group" "asg" {
-  name                = "${var.project_name}-asg-new"
+  name                = "${var.project_name}-asg-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   min_size            = var.min_size
   max_size            = var.max_size
   desired_capacity    = var.desired_capacity
