@@ -1,7 +1,9 @@
 set -e
 
+export AWS_DEFAULT_REGION=us-east-1
+
 echo "Finding the most recent Lambda function for ec2-transformation-asg-redeploy..."
-LAMBDA_NAME=$(aws lambda list-functions --query "Functions[?starts_with(FunctionName, 'ec2-transformation-asg-redeploy')].FunctionName" --output text | tr '\t' '\n' | sort | tail -n 1)
+LAMBDA_NAME=$(aws lambda list-functions --region us-east-1 --query "Functions[?starts_with(FunctionName, 'ec2-transformation-asg-redeploy')].FunctionName" --output text | tr '\t' '\n' | sort | tail -n 1)
 
 if [ -z "$LAMBDA_NAME" ]; then
   echo "Error: No Lambda function found with name starting with 'ec2-transformation-asg-redeploy'"
@@ -12,6 +14,7 @@ echo "Found Lambda function: $LAMBDA_NAME"
 
 echo "Invoking Lambda function to trigger ASG redeploy..."
 aws lambda invoke \
+  --region us-east-1 \
   --function-name "$LAMBDA_NAME" \
   --payload '{}' \
   response.json
@@ -26,6 +29,7 @@ LOG_GROUP_NAME="/aws/lambda/$LAMBDA_NAME"
 echo "Fetching logs from $LOG_GROUP_NAME"
 
 aws logs describe-log-streams \
+  --region us-east-1 \
   --log-group-name "$LOG_GROUP_NAME" \
   --order-by LastEventTime \
   --descending \
@@ -36,6 +40,7 @@ LOG_STREAM=$(cat log_streams.json | jq -r '.logStreams[0].logStreamName')
 if [ -n "$LOG_STREAM" ]; then
   echo "Fetching log events from stream: $LOG_STREAM"
   aws logs get-log-events \
+    --region us-east-1 \
     --log-group-name "$LOG_GROUP_NAME" \
     --log-stream-name "$LOG_STREAM" \
     --limit 20 > log_events.json
