@@ -32,7 +32,7 @@ data "aws_ami" "amazon_linux_2" {
 }
 
 resource "aws_security_group" "instance_sg" {
-  name        = "${var.project_name}-instance-sg-new"
+  name        = "${var.project_name}-instance-sg-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   description = "Security group for EC2 instances in the autoscaling group"
   vpc_id      = var.vpc_id == null ? data.aws_vpc.default[0].id : var.vpc_id
 
