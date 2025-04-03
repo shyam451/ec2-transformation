@@ -1,0 +1,46 @@
+name: Check ASG Status
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  check_asg:
+    name: Check ASG Status
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Check ASG Status
+      run: |
+        echo "Checking Auto Scaling Groups..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation-asg-')].[AutoScalingGroupName,MinSize,MaxSize,DesiredCapacity,Instances[*].InstanceId]" \
+          --output json
+        
+        echo "Checking Instance Refresh Status..."
+        ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation-asg-')].AutoScalingGroupName" --output text | tr '\t' '\n' | sort | tail -n 1)
+        
+        if [ -n "$ASG_NAME" ]; then
+          echo "Found ASG: $ASG_NAME"
+          aws autoscaling describe-instance-refreshes \
+            --auto-scaling-group-name "$ASG_NAME" \
+            --query "InstanceRefreshes[0]" \
+            --output json
+        else
+          echo "No ASG found with name containing 'ec2-transformation-asg-'"
+        fi
+        
+        echo "Checking EC2 Instances..."
+        aws ec2 describe-instances \
+          --filters "Name=tag:Name,Values=ec2-transformation-instance" \
+          --query "Reservations[].Instances[].{InstanceId:InstanceId,State:State.Name,LaunchTime:LaunchTime}" \
+          --output json
