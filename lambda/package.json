@@ -6,6 +6,6 @@
   "author": "Devin AI",
   "license": "MIT",
   "dependencies": {
-    "aws-sdk": "^2.1099.0"
+    "aws-sdk": "^2.1692.0"
   }
 }
