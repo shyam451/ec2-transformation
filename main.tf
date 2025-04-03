@@ -67,9 +67,8 @@ resource "aws_security_group" "instance_sg" {
 }
 
 
-/*
 resource "aws_iam_role" "lambda_role" {
-  name = "${var.project_name}-lambda-role"
+  name = "${var.project_name}-lambda-role-new"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -91,7 +90,7 @@ resource "aws_iam_role" "lambda_role" {
 }
 
 resource "aws_iam_policy" "lambda_policy" {
-  name        = "${var.project_name}-lambda-policy"
+  name        = "${var.project_name}-lambda-policy-new"
   description = "Policy for Lambda to interact with ASG"
 
   policy = jsonencode({
@@ -118,4 +117,3 @@ resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = aws_iam_policy.lambda_policy.arn
 }
-*/

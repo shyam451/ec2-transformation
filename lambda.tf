@@ -1,7 +1,6 @@
 
-/*
 resource "aws_lambda_function" "asg_redeploy" {
-  function_name    = "${var.project_name}-asg-redeploy"
+  function_name    = "${var.project_name}-asg-redeploy-new"
   filename         = "${path.module}/lambda/asg_redeploy.zip"
   source_code_hash = filebase64sha256("${path.module}/lambda/asg_redeploy.zip")
   role             = aws_iam_role.lambda_role.arn
@@ -27,7 +26,7 @@ resource "aws_lambda_function" "asg_redeploy" {
 }
 
 resource "aws_cloudwatch_event_rule" "scheduled_redeploy" {
-  name                = "${var.project_name}-scheduled-redeploy"
+  name                = "${var.project_name}-scheduled-redeploy-new"
   description         = "Trigger ASG redeploy on a schedule"
   schedule_expression = "rate(7 days)"
   is_enabled          = false # Disabled by default, enable if needed
@@ -51,4 +50,3 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.scheduled_redeploy.arn
 }
-*/
