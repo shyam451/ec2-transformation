@@ -30,11 +30,12 @@ resource "aws_launch_template" "asg_launch_template" {
 }
 
 resource "aws_autoscaling_group" "asg" {
-  name                = "${var.project_name}-asg-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+  name                = "${var.project_name}-asg"
   min_size            = var.min_size
   max_size            = var.max_size
   desired_capacity    = var.desired_capacity
   vpc_zone_identifier = var.subnet_ids != null ? var.subnet_ids : data.aws_subnets.default[0].ids
+  force_delete        = true
 
   launch_template {
     id      = aws_launch_template.asg_launch_template.id
