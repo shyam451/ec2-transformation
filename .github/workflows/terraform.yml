@@ -25,20 +25,34 @@ jobs:
         terraform_version: 1.0.0
 
     - name: Configure AWS credentials
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+        AWS_ROLE_ARN: arn:aws:iam::641002720432:role/ec2-role
       run: |
-        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-        echo "AWS_REGION=${{ secrets.AWS_REGION || 'us-east-1' }}" >> $GITHUB_ENV
+        # Create AWS config files
+        mkdir -p ~/.aws
         
-        # Configure AWS CLI to assume the role
-        aws configure set aws.region ${{ secrets.AWS_REGION || 'us-east-1' }}
+        # Create credentials file
+        cat > ~/.aws/credentials << EOF
+        [default]
+        aws_access_key_id=$AWS_ACCESS_KEY_ID
+        aws_secret_access_key=$AWS_SECRET_ACCESS_KEY
+        EOF
         
-        # Assume the role and export temporary credentials
-        CREDS=$(aws sts assume-role --role-arn arn:aws:iam::641002720432:role/ec2-role --role-session-name github-actions)
+        # Create config file with role assumption
+        cat > ~/.aws/config << EOF
+        [default]
+        region=$AWS_REGION
         
-        echo "AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.Credentials.AccessKeyId')" >> $GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.Credentials.SecretAccessKey')" >> $GITHUB_ENV
-        echo "AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.Credentials.SessionToken')" >> $GITHUB_ENV
+        [profile ec2role]
+        role_arn=$AWS_ROLE_ARN
+        source_profile=default
+        EOF
+        
+        # Export the profile to use
+        echo "AWS_PROFILE=ec2role" >> $GITHUB_ENV
 
     - name: Terraform Format
       id: fmt
