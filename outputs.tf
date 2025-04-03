@@ -10,7 +10,7 @@ output "launch_template_id" {
 
 output "security_group_id" {
   description = "ID of the security group"
-  value       = aws_security_group.instance_sg.id
+  value       = data.aws_security_group.instance_sg.id
 }
 
 /*
