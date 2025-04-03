@@ -45,6 +45,10 @@ resource "aws_autoscaling_group" "asg" {
     strategy = "Rolling"
     preferences {
       min_healthy_percentage = 50
+      instance_warmup = 300
+      auto_rollback = true
+      scale_in_protected_instances = "Terminate"
+      standby_instances = "Terminate"
     }
   }
 

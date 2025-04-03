@@ -14,12 +14,33 @@ exports.handler = async (event) => {
   }
   
   try {
+    const checkParams = {
+      AutoScalingGroupName: asgName,
+    };
+    
+    console.log(`Checking for ongoing instance refreshes in ASG: ${asgName}`);
+    const currentRefreshes = await autoscaling.describeInstanceRefreshes(checkParams).promise();
+    
+    if (currentRefreshes.InstanceRefreshes && currentRefreshes.InstanceRefreshes.length > 0) {
+      for (const refresh of currentRefreshes.InstanceRefreshes) {
+        if (['Pending', 'InProgress'].includes(refresh.Status)) {
+          console.log(`Cancelling ongoing instance refresh: ${refresh.InstanceRefreshId}`);
+          await autoscaling.cancelInstanceRefresh({
+            AutoScalingGroupName: asgName
+          }).promise();
+        }
+      }
+    }
+    
     const params = {
       AutoScalingGroupName: asgName,
       Strategy: 'Rolling',
       Preferences: {
         MinHealthyPercentage: 50,
-        InstanceWarmup: 300
+        InstanceWarmup: 300,
+        AutoRollback: true,
+        ScaleInProtectedInstances: 'Terminate',
+        StandbyInstances: 'Terminate'
       }
     };
     
