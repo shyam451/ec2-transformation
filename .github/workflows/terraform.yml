@@ -26,18 +26,10 @@ jobs:
         terraform_version: 1.0.0
 
     - name: Configure AWS credentials
-      env:
-        AWS_REGION: eu-north-1
-      run: |
-        # Create dummy credentials for Terraform to use
-        # This is a workaround since we don't have actual credentials
-        # In a real environment, you would use GitHub secrets
-        export AWS_ACCESS_KEY_ID="dummy_access_key"
-        export AWS_SECRET_ACCESS_KEY="dummy_secret_key"
-        export AWS_REGION="eu-north-1"
-        echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> $GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> $GITHUB_ENV
-        echo "AWS_REGION=$AWS_REGION" >> $GITHUB_ENV
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: eu-north-1
 
     - name: Terraform Format
       id: fmt
