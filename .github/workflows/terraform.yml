@@ -26,11 +26,13 @@ jobs:
         terraform_version: 1.0.0
 
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-region: eu-north-1
-        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
-        role-session-name: GitHubActions
+      run: |
+        # Configure AWS CLI directly
+        mkdir -p ~/.aws
+        echo "[default]" > ~/.aws/credentials
+        echo "region = eu-north-1" > ~/.aws/config
+        echo "role_arn = arn:aws:iam::641002720432:role/ec2-role" >> ~/.aws/config
+        echo "credential_source = Ec2InstanceMetadata" >> ~/.aws/config
 
     - name: Terraform Format
       id: fmt
