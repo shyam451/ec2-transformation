@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+TIMESTAMP=$(date +%s)
+echo "Timestamp: $TIMESTAMP"
 
 echo "Creating Lambda invocation workflow file..."
 
@@ -124,4 +126,4 @@ jobs:
 EOF
 
 echo "Workflow file created. Commit and push this file to trigger the Lambda invocation."
-echo "Run: git add .github/workflows/trigger_lambda_now.yml direct_lambda_invoke.sh && git commit -m 'Add Lambda trigger workflow' && git push origin devin/1743646842-ec2-asg-lambda"
+echo "Run: git add .github/workflows/trigger_lambda_now.yml direct_lambda_invoke.sh && git commit -m 'Retrigger Lambda function - $TIMESTAMP' && git push origin devin/1743646842-ec2-asg-lambda"
