@@ -13,10 +13,32 @@ This repository contains Terraform code to:
 - `lambda/` - Directory containing Lambda function code
 - `.github/workflows/` - GitHub Actions workflow for CI/CD
 
-## Usage
-1. Initialize Terraform: `terraform init`
-2. Plan the deployment: `terraform plan`
-3. Apply the configuration: `terraform apply`
+## Configuration
+- AWS Region: `eu-north-1` (Stockholm)
+- EC2 Instance Type: `t2.micro` (Free tier eligible)
+- Autoscaling Group: Min 1, Max 3, Desired 2 instances
+- Lambda Function: NodeJS 14.x runtime for triggering ASG redeployment
+
+## Manual Deployment
+1. Configure AWS CLI with appropriate credentials:
+   ```
+   aws configure
+   ```
+   
+2. Initialize Terraform:
+   ```
+   terraform init
+   ```
+   
+3. Plan the deployment:
+   ```
+   terraform plan
+   ```
+   
+4. Apply the configuration:
+   ```
+   terraform apply
+   ```
 
 ## CI/CD Pipeline
 This repository includes a GitHub Actions workflow that:
@@ -27,7 +49,12 @@ This repository includes a GitHub Actions workflow that:
 ### Required GitHub Secrets
 - `AWS_ACCESS_KEY_ID`: AWS access key with permissions to create resources
 - `AWS_SECRET_ACCESS_KEY`: AWS secret key
-- `AWS_REGION`: (Optional) AWS region to deploy resources (defaults to us-east-1)
+
+### IAM Role Configuration
+The GitHub Actions workflow is configured to assume the IAM role:
+`arn:aws:iam::641002720432:role/ec2-role`
+
+For this to work, the AWS account needs to have an OIDC provider configured for GitHub Actions.
 
 ## Requirements
 - Terraform >= 0.12
