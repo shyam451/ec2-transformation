@@ -98,20 +98,13 @@ jobs:
         role-to-assume: arn:aws:iam::641002720432:role/ec2-role
         aws-region: us-east-1
         
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform_version: 1.0.0
-        
-    - name: Terraform Init
-      run: terraform init
-      
-    - name: Get Lambda Function Name
-      id: get_lambda
+    - name: Find Lambda Function
+      id: find_lambda
       run: |
-        LAMBDA_NAME=$(terraform output -raw lambda_function_name)
+        echo "Finding the most recent Lambda function for ec2-transformation-asg-redeploy..."
+        LAMBDA_NAME=$(aws lambda list-functions --query "Functions[?starts_with(FunctionName, 'ec2-transformation-asg-redeploy')].FunctionName" --output text | sort | tail -n 1)
+        echo "Found Lambda function: $LAMBDA_NAME"
         echo "LAMBDA_NAME=$LAMBDA_NAME" >> $GITHUB_ENV
-        echo "Lambda function name: $LAMBDA_NAME"
         
     - name: Invoke Lambda Function
       run: |
