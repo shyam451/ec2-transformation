@@ -5,7 +5,7 @@ resource "aws_lambda_function" "asg_redeploy" {
   source_code_hash = filebase64sha256("${path.module}/lambda/asg_redeploy.zip")
   role             = aws_iam_role.lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs18.x"
   timeout          = 30
   memory_size      = 128
 
