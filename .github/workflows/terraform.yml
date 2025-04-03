@@ -29,7 +29,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v2
       with:
         role-to-assume: arn:aws:iam::641002720432:role/ec2-role
-        aws-region: eu-north-1
+        aws-region: us-east-1
 
     - name: Terraform Format
       id: fmt
