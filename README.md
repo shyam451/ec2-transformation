@@ -14,10 +14,11 @@ This repository contains Terraform code to:
 - `.github/workflows/` - GitHub Actions workflow for CI/CD
 
 ## Configuration
-- AWS Region: `eu-north-1` (Stockholm)
+- AWS Region: `us-east-1` (N. Virginia)
 - EC2 Instance Type: `t2.micro` (Free tier eligible)
 - Autoscaling Group: Min 1, Max 3, Desired 2 instances
-- Lambda Function: NodeJS 14.x runtime for triggering ASG redeployment
+- CloudWatch Alarms: CPU utilization-based scaling policies
+- Security Group: Allows SSH (port 22) and HTTP (port 80) access
 
 ## Manual Deployment
 1. Configure AWS CLI with appropriate credentials:
@@ -54,7 +55,16 @@ This repository includes a GitHub Actions workflow that:
 The GitHub Actions workflow is configured to assume the IAM role:
 `arn:aws:iam::641002720432:role/ec2-role`
 
-For this to work, the AWS account needs to have an OIDC provider configured for GitHub Actions.
+The workflow uses AWS OIDC provider for authentication with the following configuration:
+- Provider URL: `https://token.actions.githubusercontent.com`
+- Audience: `sts.amazonaws.com`
+- Subject: `repo:shyam451/ec2-transformation:*`
+
+### Current Implementation
+- Lambda function implementation is currently commented out due to IAM permission constraints
+- Resources are created with unique names to avoid conflicts with existing resources
+- Autoscaling group is configured with CPU-based scaling policies
+- EC2 instances run a simple web server that displays a welcome message
 
 ## Requirements
 - Terraform >= 0.12
