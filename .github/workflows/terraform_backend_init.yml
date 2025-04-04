@@ -1,0 +1,47 @@
+name: Terraform Backend Init and Plan
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform:
+    name: Terraform Backend Init and Plan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Create Backend Resources
+      run: |
+        echo "Creating backend resources..."
+        terraform init
+        terraform apply -target=aws_s3_bucket.terraform_state -target=aws_dynamodb_table.terraform_locks -auto-approve
+        
+    - name: Migrate State to S3
+      run: |
+        echo "Migrating state to S3 backend..."
+        terraform init -migrate-state -force-copy
+        
+    - name: Terraform Plan
+      run: |
+        echo "Running terraform plan to check for deviations..."
+        terraform plan -out=tfplan
+        
+    - name: Show Plan Summary
+      run: |
+        echo "Plan summary:"
+        terraform show -no-color tfplan | grep -A 20 "Plan:"
