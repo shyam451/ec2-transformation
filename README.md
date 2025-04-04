@@ -12,6 +12,8 @@ This repository contains Terraform code to:
 - `asg.tf` - Autoscaling group configuration
 - `lambda/` - Directory containing Lambda function code
 - `.github/workflows/` - GitHub Actions workflow for CI/CD
+- `backend.tf` - Terraform backend configuration
+- `backend_resources.tf` - Resources for S3 backend setup
 
 ## Configuration
 - AWS Region: `us-east-1` (N. Virginia)
@@ -19,6 +21,21 @@ This repository contains Terraform code to:
 - Autoscaling Group: Min 1, Max 3, Desired 2 instances
 - CloudWatch Alarms: CPU utilization-based scaling policies
 - Security Group: Allows SSH (port 22) and HTTP (port 80) access
+
+## Terraform Backend Configuration
+This repository includes configuration for a Terraform S3 backend. To use it:
+
+1. First, apply the backend resources:
+   ```
+   terraform apply -target=aws_s3_bucket.terraform_state -target=aws_dynamodb_table.terraform_locks
+   ```
+
+2. Uncomment the S3 backend configuration in `backend.tf`
+
+3. Initialize Terraform with state migration:
+   ```
+   terraform init -migrate-state
+   ```
 
 ## Manual Deployment
 1. Configure AWS CLI with appropriate credentials:
