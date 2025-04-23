@@ -1,0 +1,54 @@
+name: Check EC2 Instances Status
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - devin/1743779809-migrate-state-auto
+    paths:
+      - '.github/workflows/check_ec2_instances.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  check_ec2:
+    name: Check EC2 Instances Status
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: List All EC2 Instances
+      run: |
+        echo "Listing all EC2 instances in the account..."
+        aws ec2 describe-instances \
+          --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,Type:InstanceType,LaunchTime:LaunchTime,Name:Tags[?Key=='Name']|[0].Value}" \
+          --output table
+          
+    - name: Check Autoscaling Groups
+      run: |
+        echo "Checking autoscaling groups..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[*].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity,Instances:Instances[*].InstanceId}" \
+          --output table
+          
+    - name: Check EC2 Instances in ASG
+      run: |
+        echo "Checking EC2 instances in autoscaling group..."
+        ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation')].AutoScalingGroupName" --output text)
+        
+        if [ -n "$ASG_NAME" ]; then
+          echo "Found ASG: $ASG_NAME"
+          aws autoscaling describe-auto-scaling-groups \
+            --auto-scaling-group-names "$ASG_NAME" \
+            --query "AutoScalingGroups[*].{Name:AutoScalingGroupName,Instances:Instances[*].{Id:InstanceId,State:LifecycleState,AZ:AvailabilityZone,Health:HealthStatus}}" \
+            --output table
+        else
+          echo "No autoscaling group found with 'ec2-transformation' in the name."
+        fi
