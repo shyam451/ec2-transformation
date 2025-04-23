@@ -1,0 +1,54 @@
+name: Update ASG Capacity and Launch EC2 Instances
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - devin/1743779809-migrate-state-auto
+    paths:
+      - '.github/workflows/update_asg_capacity.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform:
+    name: Update ASG and Launch EC2 Instances
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Terraform Init
+      run: terraform init
+      
+    - name: Terraform Apply
+      run: |
+        echo "Applying Terraform configuration to update ASG capacity..."
+        terraform apply -auto-approve
+        
+    - name: Verify EC2 Instances
+      run: |
+        echo "Waiting for instances to launch..."
+        sleep 60
+        
+        echo "Checking autoscaling groups..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[*].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity,Instances:Instances[*].InstanceId}" \
+          --output table
+          
+        echo "Checking EC2 instances..."
+        aws ec2 describe-instances \
+          --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,Type:InstanceType,LaunchTime:LaunchTime,Name:Tags[?Key=='Name']|[0].Value}" \
+          --output table
