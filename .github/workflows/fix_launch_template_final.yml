@@ -1,0 +1,178 @@
+name: Fix Launch Template and Force Instance Creation
+
+on:
+  push:
+    branches:
+      - devin/1743779809-migrate-state-auto
+    paths:
+      - '.github/workflows/fix_launch_template_final.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  fix_launch_template:
+    name: Fix Launch Template and Force Instance Creation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Check Current Launch Templates
+      run: |
+        echo "Checking current launch templates..."
+        aws ec2 describe-launch-templates \
+          --query "LaunchTemplates[*].{Id:LaunchTemplateId,Name:LaunchTemplateName,Version:LatestVersionNumber,Created:CreateTime}" \
+          --output table
+          
+    - name: Create New Launch Template
+      run: |
+        echo "Creating new launch template..."
+        
+        # Get latest Amazon Linux 2 AMI
+        AMI_ID=$(aws ec2 describe-images \
+          --owners amazon \
+          --filters "Name=name,Values=amzn2-ami-hvm-*-x86_64-gp2" "Name=state,Values=available" \
+          --query "sort_by(Images, &CreationDate)[-1].ImageId" \
+          --output text)
+          
+        echo "Using AMI: $AMI_ID"
+        
+        # Get default VPC ID
+        VPC_ID=$(aws ec2 describe-vpcs \
+          --filters "Name=isDefault,Values=true" \
+          --query "Vpcs[0].VpcId" \
+          --output text)
+          
+        echo "Using VPC: $VPC_ID"
+        
+        # Create security group
+        SG_ID=$(aws ec2 create-security-group \
+          --group-name "ec2-transformation-sg-$(date +%s)" \
+          --description "Security group for EC2 instances in ASG" \
+          --vpc-id "$VPC_ID" \
+          --query "GroupId" \
+          --output text)
+          
+        echo "Created security group: $SG_ID"
+        
+        # Add ingress rules
+        aws ec2 authorize-security-group-ingress \
+          --group-id "$SG_ID" \
+          --protocol tcp \
+          --port 22 \
+          --cidr 0.0.0.0/0
+          
+        aws ec2 authorize-security-group-ingress \
+          --group-id "$SG_ID" \
+          --protocol tcp \
+          --port 80 \
+          --cidr 0.0.0.0/0
+          
+        # Add egress rule
+        aws ec2 authorize-security-group-egress \
+          --group-id "$SG_ID" \
+          --protocol all \
+          --port all \
+          --cidr 0.0.0.0/0
+          
+        echo "Security group rules added"
+        
+        # Create user data
+        USER_DATA=$(echo -n "#!/bin/bash
+echo \"Hello from EC2 instance in ASG\" > /tmp/hello.txt
+yum update -y
+yum install -y httpd
+systemctl start httpd
+systemctl enable httpd
+echo \"<h1>Hello World from \$(hostname -f)</h1>\" > /var/www/html/index.html" | base64)
+        
+        # Create launch template
+        TEMPLATE_ID=$(aws ec2 create-launch-template \
+          --launch-template-name "ec2-transformation-lt-$(date +%s)" \
+          --version-description "Fixed version" \
+          --launch-template-data "{
+            \"ImageId\": \"$AMI_ID\",
+            \"InstanceType\": \"t2.micro\",
+            \"SecurityGroupIds\": [\"$SG_ID\"],
+            \"UserData\": \"$USER_DATA\",
+            \"TagSpecifications\": [{
+              \"ResourceType\": \"instance\",
+              \"Tags\": [{
+                \"Key\": \"Name\",
+                \"Value\": \"ec2-transformation-instance\"
+              }]
+            }]
+          }" \
+          --query "LaunchTemplate.LaunchTemplateId" \
+          --output text)
+          
+        echo "Created launch template: $TEMPLATE_ID"
+        echo "TEMPLATE_ID=$TEMPLATE_ID" >> $GITHUB_ENV
+        echo "SG_ID=$SG_ID" >> $GITHUB_ENV
+        
+    - name: Get Subnet IDs
+      run: |
+        echo "Getting subnet IDs..."
+        SUBNET_IDS=$(aws ec2 describe-subnets \
+          --filters "Name=vpc-id,Values=$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[0].VpcId" --output text)" \
+          --query "Subnets[*].SubnetId" \
+          --output text | tr '\t' ',')
+          
+        echo "Using subnets: $SUBNET_IDS"
+        echo "SUBNET_IDS=$SUBNET_IDS" >> $GITHUB_ENV
+        
+    - name: Update Existing ASG
+      run: |
+        echo "Updating existing ASG..."
+        
+        # Update first ASG
+        aws autoscaling update-auto-scaling-group \
+          --auto-scaling-group-name "ec2-transformation-asg" \
+          --launch-template "LaunchTemplateId=$TEMPLATE_ID,Version=\$Latest" \
+          --min-size 1 \
+          --max-size 3 \
+          --desired-capacity 2
+          
+        echo "Updated ec2-transformation-asg with new launch template"
+        
+        # Start instance refresh
+        aws autoscaling start-instance-refresh \
+          --auto-scaling-group-name "ec2-transformation-asg" \
+          --preferences "MinHealthyPercentage=50,InstanceWarmup=300"
+          
+        echo "Started instance refresh for ec2-transformation-asg"
+        
+    - name: Wait for instances to launch (3 minutes)
+      run: |
+        echo "Waiting for instances to launch (3 minutes)..."
+        sleep 180
+        
+    - name: Check EC2 Instances
+      run: |
+        echo "Checking EC2 instances..."
+        aws ec2 describe-instances \
+          --filters "Name=instance-state-name,Values=running,pending" \
+          --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,Type:InstanceType,LaunchTime:LaunchTime,Name:Tags[?Key=='Name']|[0].Value}" \
+          --output table
+          
+    - name: Check ASG Status
+      run: |
+        echo "Checking ASG status..."
+        aws autoscaling describe-auto-scaling-groups \
+          --auto-scaling-group-names "ec2-transformation-asg" \
+          --query "AutoScalingGroups[*].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity,Instances:Instances[*].{Id:InstanceId,State:LifecycleState,AZ:AvailabilityZone,Health:HealthStatus}}" \
+          --output table
+          
+    - name: Check Instance Refresh Status
+      run: |
+        echo "Checking instance refresh status..."
+        aws autoscaling describe-instance-refreshes \
+          --auto-scaling-group-name "ec2-transformation-asg" \
+          --query "InstanceRefreshes[*].{Id:InstanceRefreshId,Status:Status,StartTime:StartTime,PercentageComplete:PercentageComplete}" \
+          --output table
