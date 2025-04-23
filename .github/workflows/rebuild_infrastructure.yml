@@ -1,0 +1,90 @@
+name: Rebuild Complete Infrastructure
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Package Lambda Function
+      run: |
+        cd lambda
+        npm install
+        chmod +x package.sh
+        ./package.sh
+        
+    - name: Terraform Init with No Backend
+      run: |
+        # Initialize with local state first to avoid backend issues
+        rm -f backend.tf
+        terraform init
+      
+    - name: Terraform Plan
+      run: terraform plan -out=tfplan
+      
+    - name: Terraform Apply
+      run: terraform apply -auto-approve tfplan
+      
+    - name: Wait for resources to be created (3 minutes)
+      run: |
+        echo "Waiting for resources to be created (3 minutes)..."
+        sleep 180
+        
+    - name: Check EC2 Instances
+      run: |
+        echo "Checking EC2 instances..."
+        aws ec2 describe-instances \
+          --filters "Name=instance-state-name,Values=running,pending" \
+          --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,Type:InstanceType,LaunchTime:LaunchTime,Name:Tags[?Key=='Name']|[0].Value}" \
+          --output table
+          
+    - name: Check ASG Status
+      run: |
+        echo "Checking ASG status..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[*].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity,Instances:Instances[*].{Id:InstanceId,State:LifecycleState,AZ:AvailabilityZone,Health:HealthStatus}}" \
+          --output table
+          
+    - name: Invoke Lambda Function
+      run: |
+        echo "Invoking Lambda function to trigger ASG redeployment..."
+        LAMBDA_NAME=$(aws lambda list-functions \
+          --query "Functions[?starts_with(FunctionName, 'ec2-transformation-asg-redeploy')].FunctionName | sort_by(@, &@)[-1]" \
+          --output text)
+          
+        echo "Using Lambda function: $LAMBDA_NAME"
+        
+        if [ -n "$LAMBDA_NAME" ]; then
+          aws lambda invoke \
+            --function-name "$LAMBDA_NAME" \
+            --payload '{}' \
+            response.json
+            
+          cat response.json
+        else
+          echo "Lambda function not found"
+        fi
