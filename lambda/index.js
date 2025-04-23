@@ -38,7 +38,7 @@ exports.handler = async (event) => {
       Preferences: {
         MinHealthyPercentage: 50,
         InstanceWarmup: 300,
-        AutoRollback: true,
+        AutoRollback: false, // Set to false when no DesiredConfiguration is provided
         ScaleInProtectedInstances: 'Ignore',
         StandbyInstances: 'Terminate'
       }
