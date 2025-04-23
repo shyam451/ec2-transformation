@@ -34,7 +34,7 @@ resource "aws_autoscaling_group" "asg" {
   min_size            = var.min_size
   max_size            = var.max_size
   desired_capacity    = var.desired_capacity
-  vpc_zone_identifier = var.subnet_ids != null ? var.subnet_ids : data.aws_subnets.default[0].ids
+  vpc_zone_identifier = aws_subnet.public[*].id
   force_delete        = true
 
   launch_template {
