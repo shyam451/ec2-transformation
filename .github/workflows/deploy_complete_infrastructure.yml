@@ -77,7 +77,7 @@ jobs:
       run: |
         echo "Invoking Lambda function to trigger ASG redeployment..."
         LAMBDA_NAME=$(aws lambda list-functions \
-          --query "Functions[?starts_with(FunctionName, '${var.project_name}-asg-redeploy')].FunctionName" \
+          --query "Functions[?starts_with(FunctionName, 'ec2-transformation-asg-redeploy')].FunctionName" \
           --output text)
           
         if [ -n "$LAMBDA_NAME" ]; then
