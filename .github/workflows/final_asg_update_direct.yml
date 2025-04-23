@@ -1,0 +1,177 @@
+name: Final ASG Update Direct
+
+on:
+  push:
+    branches:
+      - devin/update-asg-capacity
+    paths:
+      - '.github/workflows/final_asg_update_direct.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  update_asg:
+    name: Update ASG Capacity and Force Instance Creation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Check Current ASG Status
+      run: |
+        echo "Checking current ASG status..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[*].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity,Instances:Instances[*].{Id:InstanceId,State:LifecycleState}}" \
+          --output table
+          
+    - name: Update ASG Capacity
+      run: |
+        echo "Updating ASG capacity..."
+        
+        # Get list of all ASGs
+        ASG_NAMES=$(aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[*].AutoScalingGroupName" \
+          --output text)
+          
+        # Update each ASG that matches our pattern
+        for ASG_NAME in $ASG_NAMES; do
+          if [[ $ASG_NAME == *"ec2-transformation"* ]]; then
+            echo "Updating ASG: $ASG_NAME"
+            aws autoscaling update-auto-scaling-group \
+              --auto-scaling-group-name "$ASG_NAME" \
+              --min-size 1 \
+              --max-size 3 \
+              --desired-capacity 2
+              
+            echo "Updated $ASG_NAME with min-size=1, max-size=3, and desired-capacity=2"
+            
+            # Start instance refresh
+            echo "Starting instance refresh for ASG: $ASG_NAME"
+            aws autoscaling start-instance-refresh \
+              --auto-scaling-group-name "$ASG_NAME" \
+              --preferences "MinHealthyPercentage=50,InstanceWarmup=300"
+              
+            echo "Started instance refresh for $ASG_NAME"
+          fi
+        done
+        
+    - name: Wait for instances to launch (3 minutes)
+      run: |
+        echo "Waiting for instances to launch (3 minutes)..."
+        sleep 180
+        
+    - name: Check EC2 Instances
+      run: |
+        echo "Checking EC2 instances..."
+        aws ec2 describe-instances \
+          --filters "Name=instance-state-name,Values=running,pending" \
+          --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,Type:InstanceType,LaunchTime:LaunchTime,Name:Tags[?Key=='Name']|[0].Value}" \
+          --output table
+          
+    - name: Check ASG Status After Update
+      run: |
+        echo "Checking ASG status after update..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[*].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity,Instances:Instances[*].{Id:InstanceId,State:LifecycleState,AZ:AvailabilityZone,Health:HealthStatus}}" \
+          --output table
+          
+    - name: Create Direct EC2 Instances (Fallback)
+      if: ${{ failure() }}
+      run: |
+        echo "Creating EC2 instances directly as fallback..."
+        
+        # Get default VPC ID
+        VPC_ID=$(aws ec2 describe-vpcs \
+          --filters "Name=isDefault,Values=true" \
+          --query "Vpcs[0].VpcId" \
+          --output text)
+          
+        echo "Using VPC: $VPC_ID"
+        
+        # Create security group
+        SG_ID=$(aws ec2 create-security-group \
+          --group-name "ec2-direct-sg-$(date +%s)" \
+          --description "Security group for direct EC2 instances" \
+          --vpc-id "$VPC_ID" \
+          --query "GroupId" \
+          --output text)
+          
+        echo "Created security group: $SG_ID"
+        
+        # Add security group rules
+        aws ec2 authorize-security-group-ingress \
+          --group-id "$SG_ID" \
+          --protocol tcp \
+          --port 22 \
+          --cidr 0.0.0.0/0
+          
+        aws ec2 authorize-security-group-ingress \
+          --group-id "$SG_ID" \
+          --protocol tcp \
+          --port 80 \
+          --cidr 0.0.0.0/0
+          
+        aws ec2 authorize-security-group-egress \
+          --group-id "$SG_ID" \
+          --protocol all \
+          --port all \
+          --cidr 0.0.0.0/0
+          
+        echo "Security group rules added"
+        
+        # Get latest Amazon Linux 2 AMI
+        AMI_ID=$(aws ec2 describe-images \
+          --owners amazon \
+          --filters "Name=name,Values=amzn2-ami-hvm-*-x86_64-gp2" "Name=state,Values=available" \
+          --query "sort_by(Images, &CreationDate)[-1].ImageId" \
+          --output text)
+          
+        echo "Using AMI: $AMI_ID"
+        
+        # Get subnet ID
+        SUBNET_ID=$(aws ec2 describe-subnets \
+          --filters "Name=vpc-id,Values=$VPC_ID" \
+          --query "Subnets[0].SubnetId" \
+          --output text)
+          
+        echo "Using subnet: $SUBNET_ID"
+        
+        # Create user data script
+        cat > user-data.sh << 'EOF'
+#!/bin/bash
+echo "Hello from EC2 instance" > /tmp/hello.txt
+yum update -y
+yum install -y httpd
+systemctl start httpd
+systemctl enable httpd
+echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
+EOF
+        
+        # Create EC2 instances
+        INSTANCE_IDS=$(aws ec2 run-instances \
+          --image-id "$AMI_ID" \
+          --instance-type t2.micro \
+          --count 2 \
+          --security-group-ids "$SG_ID" \
+          --subnet-id "$SUBNET_ID" \
+          --user-data file://user-data.sh \
+          --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=ec2-transformation-direct}]" \
+          --query "Instances[*].InstanceId" \
+          --output text)
+          
+        echo "Created instances: $INSTANCE_IDS"
+        
+        echo "Waiting for instances to be running (30 seconds)..."
+        sleep 30
+        
+        echo "Checking EC2 instances..."
+        aws ec2 describe-instances \
+          --instance-ids $INSTANCE_IDS \
+          --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,Type:InstanceType,LaunchTime:LaunchTime,PublicIP:PublicIpAddress,PrivateIP:PrivateIpAddress,Name:Tags[?Key=='Name']|[0].Value}" \
+          --output table
