@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - devin/1743779809-migrate-state-auto
-    paths:
-      - '.github/workflows/fix_launch_template.yml'
 
 permissions:
   contents: read
