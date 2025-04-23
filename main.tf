@@ -2,6 +2,21 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "aws_ami" "amazon_linux_2" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
 # IAM role for Lambda function
 resource "aws_iam_role" "lambda_role" {
   name = "${var.project_name}-lambda-role-${formatdate("YYYYMMDDhhmmss", timestamp())}"

@@ -1,8 +1,8 @@
 resource "aws_instance" "direct_instances" {
   count         = 2
-  ami           = var.ami_id != null ? var.ami_id : data.aws_ami.amazon_linux_2[0].id
+  ami           = var.ami_id != null ? var.ami_id : data.aws_ami.amazon_linux_2.id
   instance_type = "t2.micro"
-  subnet_id     = var.subnet_ids != null ? var.subnet_ids[0] : data.aws_subnets.default[0].ids[0]
+  subnet_id     = aws_subnet.public[0].id
   vpc_security_group_ids = [aws_security_group.instance_sg.id]
 
   user_data = base64encode(<<-EOF
