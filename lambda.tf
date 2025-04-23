@@ -29,7 +29,7 @@ resource "aws_cloudwatch_event_rule" "scheduled_redeploy" {
   name                = "${var.project_name}-scheduled-redeploy-${formatdate("YYYYMMDDhhmmss", timestamp())}"
   description         = "Trigger ASG redeploy on a schedule"
   schedule_expression = "rate(7 days)"
-  is_enabled          = false # Disabled by default, enable if needed
+  state               = "DISABLED" # Disabled by default, enable if needed
 
   tags = {
     Name        = "${var.project_name}-scheduled-redeploy"

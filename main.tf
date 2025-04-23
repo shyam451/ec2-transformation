@@ -52,6 +52,7 @@ resource "aws_iam_policy" "lambda_policy" {
           "autoscaling:DescribeAutoScalingGroups",
           "autoscaling:UpdateAutoScalingGroup",
           "autoscaling:StartInstanceRefresh",
+          "autoscaling:DescribeInstanceRefreshes",
           "ec2:DescribeInstances",
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
