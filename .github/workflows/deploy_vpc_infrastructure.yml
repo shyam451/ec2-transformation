@@ -45,7 +45,10 @@ jobs:
         ./package.sh
         
     - name: Terraform Init
-      run: terraform init -input=false -backend=false
+      run: |
+        # Remove backend configuration to use local state
+        rm -f backend.tf
+        terraform init -input=false
       
     - name: Terraform Plan
       run: terraform plan -input=false -out=tfplan
