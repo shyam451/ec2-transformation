@@ -1,0 +1,73 @@
+name: Direct ASG Update
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - devin/1743779809-migrate-state-auto
+    paths:
+      - '.github/workflows/direct_asg_update.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  update_asg:
+    name: Update ASG Directly
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Check Current ASG Status
+      run: |
+        echo "Checking current ASG status..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[*].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity,Instances:Instances[*].{Id:InstanceId,State:LifecycleState}}" \
+          --output table
+          
+    - name: Update ASG Configuration
+      run: |
+        echo "Updating ASG configuration..."
+        
+        # Get ASG names
+        ASG_NAMES=$(aws autoscaling describe-auto-scaling-groups --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation')].AutoScalingGroupName" --output text)
+        
+        # Update each ASG
+        for ASG_NAME in $ASG_NAMES; do
+          echo "Updating configuration for ASG: $ASG_NAME"
+          
+          # Update min size to 1, max size to 3, and desired capacity to 2
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name "$ASG_NAME" \
+            --min-size 1 \
+            --max-size 3 \
+            --desired-capacity 2
+            
+          echo "Updated ASG: $ASG_NAME with min-size=1, max-size=3, and desired-capacity=2"
+        done
+        
+    - name: Wait for instances to launch (3 minutes)
+      run: |
+        echo "Waiting for instances to launch (3 minutes)..."
+        sleep 180
+        
+    - name: Check EC2 Instances
+      run: |
+        echo "Checking EC2 instances..."
+        aws ec2 describe-instances \
+          --filters "Name=instance-state-name,Values=running,pending" \
+          --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,Type:InstanceType,LaunchTime:LaunchTime,Name:Tags[?Key=='Name']|[0].Value}" \
+          --output table
+          
+    - name: Check ASG Status After Update
+      run: |
+        echo "Checking ASG status after update..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[*].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity,Instances:Instances[*].{Id:InstanceId,State:LifecycleState,AZ:AvailabilityZone,Health:HealthStatus}}" \
+          --output table
