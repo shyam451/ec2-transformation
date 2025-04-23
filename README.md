@@ -78,10 +78,11 @@ The workflow uses AWS OIDC provider for authentication with the following config
 - Subject: `repo:shyam451/ec2-transformation:*`
 
 ### Current Implementation
-- Lambda function implementation is currently commented out due to IAM permission constraints
-- Resources are created with unique names to avoid conflicts with existing resources
-- Autoscaling group is configured with CPU-based scaling policies
-- EC2 instances run a simple web server that displays a welcome message
+- Complete infrastructure deployed including VPC, subnets, internet gateway, route tables, and security groups
+- Autoscaling group is configured with desired capacity of 2 instances
+- Lambda function successfully implemented with permissions to trigger ASG instance refresh
+- EC2 instances are running in both ASG and direct configurations
+- All resources are created with unique names using timestamps to avoid conflicts
 
 ## Requirements
 - Terraform >= 0.12
