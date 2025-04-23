@@ -1,0 +1,39 @@
+name: Force Unlock Terraform State
+
+on:
+  workflow_dispatch:
+    inputs:
+      lock_id:
+        description: 'Lock ID to force unlock'
+        required: true
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  unlock:
+    name: Force Unlock State
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      
+    - name: Terraform Init
+      run: terraform init
+      
+    - name: Force Unlock State
+      run: |
+        echo "Forcing unlock of state with lock ID: ${{ github.event.inputs.lock_id }}"
+        terraform force-unlock -force ${{ github.event.inputs.lock_id }}
