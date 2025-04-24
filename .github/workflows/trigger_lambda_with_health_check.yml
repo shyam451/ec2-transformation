@@ -133,7 +133,7 @@ jobs:
         # Get instances in the ASG
         echo "EC2 instances after refresh:"
         aws ec2 describe-instances \
-          --filters "Name:tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" \
+          --filters "Name=tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" \
           --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,LaunchTime:LaunchTime,Type:InstanceType}" \
           --output table
           
