@@ -2,6 +2,11 @@ name: Trigger Lambda Function
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - devin/complete-vpc-infrastructure
+    paths:
+      - '.github/workflows/trigger_lambda_function.yml'
 
 permissions:
   contents: read
