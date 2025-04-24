@@ -1,0 +1,54 @@
+name: Update ASG Configuration with Terraform
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  terraform:
+    name: Update ASG with Terraform
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Package Lambda Function
+      run: |
+        cd lambda
+        npm install
+        chmod +x package.sh
+        ./package.sh
+        
+    - name: Terraform Init
+      run: terraform init -input=false
+      
+    - name: Terraform Plan
+      run: terraform plan -input=false -out=tfplan
+      
+    - name: Terraform Apply
+      run: terraform apply -input=false -auto-approve tfplan
+      
+    - name: Verify ASG Configuration
+      run: |
+        echo "Verifying ASG configuration..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation')].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity}" \
+          --output table
