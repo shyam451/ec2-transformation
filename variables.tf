@@ -61,13 +61,13 @@ variable "key_name" {
 variable "min_size" {
   description = "Minimum size of the autoscaling group"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "max_size" {
   description = "Maximum size of the autoscaling group"
   type        = number
-  default     = 3
+  default     = 5
 }
 
 variable "desired_capacity" {
