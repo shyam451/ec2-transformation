@@ -2,6 +2,11 @@ name: Lambda Invoke with Health Check
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - devin/complete-vpc-infrastructure
+    paths:
+      - '.github/workflows/lambda_invoke_with_health_check.yml'
 
 permissions:
   contents: read
