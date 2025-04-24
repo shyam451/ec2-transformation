@@ -87,3 +87,4 @@ The workflow uses AWS OIDC provider for authentication with the following config
 ## Requirements
 - Terraform >= 0.12
 - AWS CLI configured with appropriate credentials
+# Terraform Plan Run: Thu Apr 24 01:47:48 UTC 2025
