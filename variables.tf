@@ -87,3 +87,4 @@ variable "project_name" {
   type        = string
   default     = "ec2-transformation"
 }
+# Terraform Plan Run: Thu Apr 24 01:48:27 UTC 2025
