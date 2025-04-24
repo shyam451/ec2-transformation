@@ -8,9 +8,54 @@ permissions:
   id-token: write
 
 jobs:
+  terraform_destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      
+    - name: Terraform Init
+      run: |
+        # Remove backend configuration to use local state
+        rm -f backend.tf
+        terraform init -input=false
+      
+    - name: Terraform Destroy
+      run: terraform destroy -auto-approve
+      
+    - name: Verify Resources Deleted
+      run: |
+        echo "Verifying EC2 instances have been deleted..."
+        aws ec2 describe-instances \
+          --filters "Name=tag:Environment,Values=ec2-transformation" \
+          --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,Type:InstanceType,LaunchTime:LaunchTime,Name:Tags[?Key=='Name']|[0].Value}" \
+          --output table
+          
+        echo "Verifying ASG has been deleted..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation')].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity}" \
+          --output table
+          
+        echo "Verifying Lambda function has been deleted..."
+        aws lambda list-functions \
+          --query "Functions[?contains(FunctionName, 'ec2-transformation')].{Name:FunctionName,Runtime:Runtime,Memory:MemorySize}" \
+          --output table
+          
   cleanup:
     name: Cleanup Remaining Resources
     runs-on: ubuntu-latest
+    needs: terraform_destroy
     
     steps:
     - name: Configure AWS credentials
@@ -24,14 +69,14 @@ jobs:
         echo "Cleaning up Auto Scaling Groups..."
         aws autoscaling describe-auto-scaling-groups \
           --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation')].AutoScalingGroupName" \
-          --output text | xargs -I {} aws autoscaling delete-auto-scaling-group --auto-scaling-group-name {} --force-delete
+          --output text | xargs -r -I {} aws autoscaling delete-auto-scaling-group --auto-scaling-group-name {} --force-delete
           
     - name: Cleanup Lambda Functions
       run: |
         echo "Cleaning up Lambda Functions..."
         aws lambda list-functions \
           --query "Functions[?contains(FunctionName, 'ec2-transformation')].FunctionName" \
-          --output text | xargs -I {} aws lambda delete-function --function-name {}
+          --output text | xargs -r -I {} aws lambda delete-function --function-name {}
           
     - name: Verify Cleanup
       run: |
