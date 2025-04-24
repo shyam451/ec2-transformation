@@ -1,0 +1,46 @@
+name: Cleanup Remaining Resources
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  cleanup:
+    name: Cleanup Remaining Resources
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Cleanup ASG Resources
+      run: |
+        echo "Cleaning up Auto Scaling Groups..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation')].AutoScalingGroupName" \
+          --output text | xargs -I {} aws autoscaling delete-auto-scaling-group --auto-scaling-group-name {} --force-delete
+          
+    - name: Cleanup Lambda Functions
+      run: |
+        echo "Cleaning up Lambda Functions..."
+        aws lambda list-functions \
+          --query "Functions[?contains(FunctionName, 'ec2-transformation')].FunctionName" \
+          --output text | xargs -I {} aws lambda delete-function --function-name {}
+          
+    - name: Verify Cleanup
+      run: |
+        echo "Verifying ASG cleanup..."
+        aws autoscaling describe-auto-scaling-groups \
+          --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation')].{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity}" \
+          --output table
+          
+        echo "Verifying Lambda cleanup..."
+        aws lambda list-functions \
+          --query "Functions[?contains(FunctionName, 'ec2-transformation')].{Name:FunctionName,Runtime:Runtime,Memory:MemorySize}" \
+          --output table
