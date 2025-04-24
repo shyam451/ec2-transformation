@@ -38,7 +38,7 @@ jobs:
           
         echo "Initial EC2 instances:"
         aws ec2 describe-instances \
-          --filters "Name:tag:aws:autoscaling:groupName,Values=$ASG_NAME" \
+          --filters "Name=tag:aws:autoscaling:groupName,Values=$ASG_NAME" \
           --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,LaunchTime:LaunchTime,Type:InstanceType}" \
           --output table
         
@@ -140,7 +140,7 @@ jobs:
         # Check for recently launched instances
         echo "Checking for recently launched instances..."
         INSTANCES=$(aws ec2 describe-instances \
-          --filters "Name:tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" \
+          --filters "Name=tag:aws:autoscaling:groupName,Values=${{ env.ASG_NAME }}" \
           --query "Reservations[*].Instances[*].{InstanceId:InstanceId,LaunchTime:LaunchTime}" \
           --output json)
           
