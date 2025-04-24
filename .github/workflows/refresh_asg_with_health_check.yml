@@ -1,4 +1,4 @@
-name: Refresh ASG with Health Check (Retriggered)
+name: Refresh ASG with Health Check (Retriggered Again)
 
 on:
   workflow_dispatch:
