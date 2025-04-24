@@ -1,0 +1,70 @@
+name: Check ASG Refresh Status
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  check_status:
+    name: Check ASG Refresh Status
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Find ASG
+      id: find_asg
+      run: |
+        echo "Finding the most recent ASG for ec2-transformation..."
+        ASG_NAME=$(aws autoscaling describe-auto-scaling-groups --query "AutoScalingGroups[?contains(AutoScalingGroupName, 'ec2-transformation')].AutoScalingGroupName" --output text | tr '\t' '\n' | sort | tail -n 1)
+        echo "Found ASG: $ASG_NAME"
+        echo "ASG_NAME=$ASG_NAME" >> $GITHUB_ENV
+        
+    - name: Check ASG Configuration
+      run: |
+        echo "Checking ASG configuration..."
+        aws autoscaling describe-auto-scaling-groups \
+          --auto-scaling-group-name ${{ env.ASG_NAME }} \
+          --query "{Name:AutoScalingGroupName,MinSize:MinSize,MaxSize:MaxSize,DesiredCapacity:DesiredCapacity}" \
+          --output table
+          
+    - name: Check Instance Refresh Status
+      run: |
+        echo "Checking instance refresh status..."
+        aws autoscaling describe-instance-refreshes \
+          --auto-scaling-group-name ${{ env.ASG_NAME }} \
+          --query "InstanceRefreshes[0]" \
+          --output json > refresh_status.json
+          
+        echo "Instance refresh status:"
+        cat refresh_status.json | jq
+        
+    - name: Check EC2 Instances
+      run: |
+        echo "Checking EC2 instances in ASG..."
+        aws autoscaling describe-auto-scaling-groups \
+          --auto-scaling-group-name ${{ env.ASG_NAME }} \
+          --query "AutoScalingGroups[0].Instances[*].{InstanceId:InstanceId,LifecycleState:LifecycleState,HealthStatus:HealthStatus,AvailabilityZone:AvailabilityZone}" \
+          --output table
+          
+        echo "Checking EC2 instance details..."
+        INSTANCE_IDS=$(aws autoscaling describe-auto-scaling-groups \
+          --auto-scaling-group-name ${{ env.ASG_NAME }} \
+          --query "AutoScalingGroups[0].Instances[*].InstanceId" \
+          --output text)
+          
+        if [ -n "$INSTANCE_IDS" ]; then
+          aws ec2 describe-instances \
+            --instance-ids $INSTANCE_IDS \
+            --query "Reservations[*].Instances[*].{InstanceId:InstanceId,State:State.Name,LaunchTime:LaunchTime,Type:InstanceType}" \
+            --output table
+        else
+          echo "No instances found in the ASG"
+        fi
