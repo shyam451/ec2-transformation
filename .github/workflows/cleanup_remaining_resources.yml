@@ -44,3 +44,4 @@ jobs:
         aws lambda list-functions \
           --query "Functions[?contains(FunctionName, 'ec2-transformation')].{Name:FunctionName,Runtime:Runtime,Memory:MemorySize}" \
           --output table
+# Trigger workflow run - Thu Apr 24 02:28:44 UTC 2025
