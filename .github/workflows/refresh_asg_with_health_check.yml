@@ -5,8 +5,6 @@ on:
   push:
     branches:
       - devin/complete-vpc-infrastructure
-    paths:
-      - '.github/workflows/refresh_asg_with_health_check.yml'
 
 permissions:
   contents: read
