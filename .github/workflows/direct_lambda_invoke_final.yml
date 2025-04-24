@@ -1,0 +1,29 @@
+name: Direct Lambda Invoke Final
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  invoke_lambda:
+    name: Invoke Lambda and Check Status
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: arn:aws:iam::641002720432:role/ec2-role
+        aws-region: us-east-1
+        
+    - name: Make script executable
+      run: chmod +x direct_lambda_invoke_final.sh
+        
+    - name: Invoke Lambda and Check Status
+      run: ./direct_lambda_invoke_final.sh
