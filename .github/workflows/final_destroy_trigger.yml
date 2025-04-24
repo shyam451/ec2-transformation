@@ -1,6 +1,7 @@
 name: Final Destroy Trigger
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - devin/complete-vpc-infrastructure
@@ -35,11 +36,8 @@ jobs:
         rm -f backend.tf
         terraform init -input=false
       
-    - name: Terraform Plan Destroy
-      run: terraform plan -destroy -input=false -out=tfdestroyplan
-      
     - name: Terraform Destroy
-      run: terraform apply -input=false -auto-approve tfdestroyplan
+      run: terraform destroy -auto-approve
       
     - name: Verify Resources Deleted
       run: |
@@ -58,3 +56,5 @@ jobs:
         aws lambda list-functions \
           --query "Functions[?contains(FunctionName, 'ec2-transformation')].{Name:FunctionName,Runtime:Runtime,Memory:MemorySize}" \
           --output table
+          
+# Trigger workflow run - Thu Apr 24 02:37:24 UTC 2025
